@@ -1,0 +1,6 @@
+; $Id$
+name = Views UI: Edit Basic Settings
+description = Interface to edit basic Views settings, such as headers, footers, title, empty text, and items to display.
+package = Views
+core = 6.x
+dependencies[] = views
