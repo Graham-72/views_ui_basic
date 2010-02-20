@@ -21,8 +21,7 @@ function views_ui_basic_admin_form() {
     '#type' => 'checkboxes',
     '#options' => _views_ui_basic_fields(),
     '#default_value' => variable_get('views_ui_basic_fields', array()),
-  );
-  
+  );  
   
   $views = views_get_all_views();
   
@@ -34,8 +33,8 @@ function views_ui_basic_admin_form() {
   );
 
 
-  foreach($views as $view_key => $view_object) {
-    if(!$view_object->disabled) {
+  foreach ($views as $view_key => $view_object) {
+    if (!isset($view_object->disabled)) {
 
       $form['fsviews']["{$view_key}_fieldset"] = array(
         '#title' => $view_key . ' [' . l(t('edit view'), "admin/build/views/edit/$view_key", array('attributes' => array('target' => '_blank'))) . ']',
@@ -43,7 +42,7 @@ function views_ui_basic_admin_form() {
       );
 
       $options = array();
-      foreach($view_object->display as $display_key => $views_display) {
+      foreach ($view_object->display as $display_key => $views_display) {
         $title = $views_display->display_title;
         if ($views_display->display_plugin == 'page') {
           $title = l($title, $views_display->display_options['path'], array('attributes' => array('target' => '_blank')));
@@ -77,8 +76,8 @@ function views_ui_basic_admin_form_submit($form, &$form_state) {
   
   variable_set('views_ui_basic_fields',  array_filter($form_state['values']['fields']));
  
-  foreach($form_state['values'] as $k => $v) {
-    if($k != 'fields' && is_array($v) && $v_nozero = array_filter($v)) { // remove 0 value
+  foreach ($form_state['values'] as $k => $v) {
+    if ($k != 'fields' && is_array($v) && $v_nozero = array_filter($v)) { // remove 0 value
       $save[$k] = array_keys($v_nozero); 
     }
   }

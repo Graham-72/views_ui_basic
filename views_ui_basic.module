@@ -65,7 +65,20 @@ function views_ui_basic_perm() {
  * Implements hook_form_alter().
  */ 
 function views_ui_basic_form_alter(&$form, $form_state, $form_id) {  
-  if((arg(0) == 'views_ui_basic' || _views_ui_basic_is_tab()) && $form_id == 'views_ui_edit_display_form') {
+  if ((arg(0) == 'views_ui_basic' || _views_ui_basic_is_tab()) && $form_id == 'views_ui_edit_display_form') {
+
+    // WYSIWYG support
+    if (module_exists('wysiwyg')) {
+      $form_rename = array(); // Format key must be renamed and same key order maintained
+      foreach ($form as $key => $value) {
+        if (strpos($key, '_format') !== FALSE) { // e.g., 'header_format' to 'format'
+          $key = 'format';
+        }
+        $form_rename[$key] = $value;
+      }
+      $form = $form_rename;      
+    } 
+    
     unset($form['buttons']['cancel']);
     unset($form['override']);
     $form['buttons']['submit']['#submit'] = array('views_ui_basic_save'); // override submit handler
@@ -99,7 +112,7 @@ function views_ui_basic_save($form, &$form_state) {
   views_object_cache_clear('view', $form_state['view']->name);
 
   // Redirect back to view page or admin page
-  if(_views_ui_basic_is_tab()) {
+  if (_views_ui_basic_is_tab()) {
     $menuitem = menu_get_item();
     drupal_goto($menuitem['tab_root']);  
   }
@@ -116,7 +129,7 @@ function views_ui_basic_save($form, &$form_state) {
 function views_ui_basic_edit_page($view_name, $display_name, $area) {
   
   $fields = variable_get('views_ui_basic_fields', array());
-  if(!isset($fields[$area])) {
+  if (!isset($fields[$area])) {
     return FALSE;    
   }
   
@@ -142,16 +155,22 @@ function views_ui_basic_list_page() {
 
   $allowed = variable_get('views_ui_basic', array());
 
-  foreach($views as $view_key => $view_object) {
-    if(isset($allowed[$view_key])) {
+  foreach ($views as $view_key => $view_object) {
+    if (isset($allowed[$view_key])) {
       $title = (isset($view_object->display['page'])) ? l($view_key, $view_object->display['page']->display_options['path']) : $view_key;
       
       $items[$view_key][] = "<h4>$title</h4>";
-      foreach($view_object->display as $display_key => $views_display) {
-        if(in_array($display_key, $allowed[$view_key])) {
+      foreach ($view_object->display as $display_key => $views_display) {
+        if (in_array($display_key, $allowed[$view_key])) {
           $editlink = array();
-          foreach($fields_allowed as $field) {
-            $value = substr(strip_tags($views_display->display_options[$field]), 0, 100);
+          foreach ($fields_allowed as $field) {
+            $defaults = isset($views_display->display_options['defaults']) ? $views_display->display_options['defaults'] : array();
+            if (!isset($defaults[$field])) {
+              $value = isset($view_object->display['default']->display_options[$field]) ? substr(strip_tags($view_object->display['default']->display_options[$field]), 0, 100) : '';
+            }
+            else {
+              $value = isset($views_display->display_options[$field]) ? substr(strip_tags($views_display->display_options[$field]), 0, 100) : '';
+            }
             $editlink[] = l("$fields[$field]", "views_ui_basic/$view_key/$display_key/$field", array('attributes' => array('title' => $value)));
           }
           
@@ -164,12 +183,12 @@ function views_ui_basic_list_page() {
             l("edit footer", "views_ui_basic/$view_key/$display_key/footer");
           */
           
-          if($header = node_teaser($views_display->display_options['header'], 1)) {
+          if ($header = node_teaser($views_display->display_options['header'], 1)) {
             $header = check_markup($header, $views_display->display_options['header_format']);
             $item .= "<fieldset><legend>" . l("Header", "views_ui_basic/$view_key/$display_key/header") . "</legend>$header</fieldset>";
           }
 
-          if($footer = node_teaser($views_display->display_options['footer'], 1)) {
+          if ($footer = node_teaser($views_display->display_options['footer'], 1)) {
             $footer = check_markup($footer, $views_display->display_options['footer_format']);
             $item .= "<fieldset><legend>" . l("Footer", "views_ui_basic/$view_key/$display_key/footer") . "</legend>$footer</fieldset>";
           }
@@ -180,11 +199,11 @@ function views_ui_basic_list_page() {
     }
   }
   
-  if(!empty($items)) {
+  if (!empty($items)) {
     return theme('item_list', $items);
   }
   else {
-    return 'No Views configured. Please ' . l('select the views', 'admin/build/views/header_footer') . ' you wish to use.';
+    return 'No Views configured. Please ' . l('select the views', 'admin/build/views/views_ui_basic') . ' you wish to use.';
   }
 }
 
@@ -202,10 +221,10 @@ function _views_ui_basic_get_pages() {
   
   $items = array();
 
-  foreach($views as $view_key => $view_object) {
-    if(isset($allowed[$view_key])) {
+  foreach ($views as $view_key => $view_object) {
+    if (isset($allowed[$view_key])) {
       
-      foreach($view_object->display as $display_key => $view_display) {
+      foreach ($view_object->display as $display_key => $view_display) {
         // If default selected, return all pages
         if(
           $view_display->display_plugin == 'page' &&
@@ -242,11 +261,11 @@ function _views_ui_basic_is_tab() {
 function _views_ui_basic_define_menu(&$items) {
   // Determine tabs
   $fields = _views_ui_basic_fields();
-  foreach(variable_get('views_ui_basic_fields', array()) as $field) {
+  foreach (variable_get('views_ui_basic_fields', array()) as $field) {
     $tabs[$field] = $fields[$field];
   }
   
-  if(!isset($tabs)) {
+  if (!isset($tabs)) {
     return;
   }
   
@@ -256,7 +275,7 @@ function _views_ui_basic_define_menu(&$items) {
    
   $views_pages = _views_ui_basic_get_pages();
   
-  foreach($views_pages as $path => $viewinfo) {
+  foreach ($views_pages as $path => $viewinfo) {
 
     // View/Edit tabs
     $items["$path/view_ui_view"] = array(
@@ -275,7 +294,7 @@ function _views_ui_basic_define_menu(&$items) {
     
     
     // Sub tabs
-    foreach($tabs as $field => $label) {
+    foreach ($tabs as $field => $label) {
       if($field == $first_field) {
         $items["$path/views_ui_edit/$first_field"] = array(
           'title' => $label,
@@ -295,8 +314,6 @@ function _views_ui_basic_define_menu(&$items) {
         );
         
       }      
-    }
-    
-  }
-    
+    }    
+  }    
 }
