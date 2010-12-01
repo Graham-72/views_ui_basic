@@ -3,13 +3,13 @@
 
 /**
  * @file views_ui_basic.module
- * User interface to edit basic settings of views.
- */ 
- 
+ * User interface to edit basic settings of Views.
+ */
+
 /**
- * Return list of editable fields
- */ 
-function _views_ui_basic_fields() {  
+ * Return list of editable fields.
+ */
+function _views_ui_basic_fields() {
   return array( // Views form name => label
     'header' => t('Header'),
     'footer' => t('Footer'),
@@ -20,7 +20,7 @@ function _views_ui_basic_fields() {
 }
 
 /**
- * Implements hook_menu()
+ * Implements hook_menu().
  */
 function views_ui_basic_menu() {
   $items = array();
@@ -47,7 +47,7 @@ function views_ui_basic_menu() {
     'file' => 'views_ui_basic.admin.inc',
     'weight' => 50,
   );
-  
+
   // Generate local tasks (menu tabs) for View pages
   _views_ui_basic_define_menu($items);
 
@@ -56,15 +56,15 @@ function views_ui_basic_menu() {
 
 /**
  * Implements hook_perm().
- */ 
+ */
 function views_ui_basic_perm() {
   return array('edit views basic settings');
 }
 
 /**
  * Implements hook_form_alter().
- */ 
-function views_ui_basic_form_alter(&$form, $form_state, $form_id) {  
+ */
+function views_ui_basic_form_alter(&$form, $form_state, $form_id) {
   if ((arg(0) == 'views_ui_basic' || _views_ui_basic_is_tab()) && $form_id == 'views_ui_edit_display_form') {
 
     // WYSIWYG support
@@ -76,30 +76,77 @@ function views_ui_basic_form_alter(&$form, $form_state, $form_id) {
         }
         $form_rename[$key] = $value;
       }
-      $form = $form_rename;      
-    } 
-    
+      $form = $form_rename;
+    }
+
     unset($form['buttons']['cancel']);
     unset($form['override']);
-    $form['buttons']['submit']['#submit'] = array('views_ui_basic_save'); // override submit handler
-  }  
+
+    // We'll override the Views setting on submit.
+    if ($form['buttons']['submit']['#value'] == t('Update default display')) {
+      $form['buttons']['submit']['#value'] = t('Update');
+      $form['override_submit'] = array(
+        '#type' => 'hidden',
+        '#value' => 1,
+      );
+    }
+
+    $form['buttons']['submit']['#submit'] = array('views_ui_basic_submit'); // New submit handler (removes old)
+  }
+}
+
+/**
+ * Preprocess page hook.
+ */
+function views_ui_basic_preprocess_page(&$vars) {
+  if (arg(0) == 'views_ui_basic' && arg(1)) {
+
+    // Determine tabs
+    $fields = _views_ui_basic_fields();
+    foreach (variable_get('views_ui_basic_fields', array()) as $field) {
+      $tabpages[$field] = $fields[$field];
+    }
+
+    if (isset($tabpages)) {
+      $tabs = theme('menu_local_task', theme('menu_item_link', array(
+        'title' => '< Edit views', 
+        'href'  => 'admin/content/views_ui_basic', 
+        'type'  => MENU_LOCAL_TASK,
+      )));
+      
+      foreach ($tabpages as $field => $label) {
+        $link = array(
+          'title' => $label,
+          'href'  => 'views_ui_basic/' . arg(1) . '/' . arg(2) . '/' . $field,
+          'type'  => MENU_LOCAL_TASK,
+        );
+        $item_link = theme('menu_item_link', $link);
+        $tabs .= theme('menu_local_task', $item_link, (strpos($item_link, 'active')));
+      }
+    }
+    $vars['tabs'] = "<ul class=\"tabs primary clearfix\">\n". $tabs ."</ul>\n";
+  }
 }
 
 /**
  * Views save/submit handler (overrides Views UI)
  * Redirects afer save.
- * @see views_ui_basic_form_alter()
- */ 
-function views_ui_basic_save($form, &$form_state) {
+ * @see views_ui_basic_form_alter().
+ */
+function views_ui_basic_submit($form, &$form_state) {
 
   $display = &$form_state['view']->display[$form_state['display_id']];
-  $display->handler->options_submit($form, $form_state);
-  //print_r($form_state['section']);
 
+  // Do not save as default Views value; instead save field value as "override"
+  $display->display_options['defaults'][$form_state['section']] = NULL;
+  $display->handler->options['defaults'][$form_state['section']] = NULL;
+
+  $display->handler->options_submit($form, $form_state);
   $form_state['view']->save();
+
   drupal_set_message(t('The !section has been updated.', array('!section' => str_replace('_', ' ', $form_state['section']))));
 
-  // Make sure menu items get rebuilt as neces
+  // Make sure menu items get rebuilt as necessary
   menu_rebuild();
 
   // Clear the views cache.
@@ -114,11 +161,11 @@ function views_ui_basic_save($form, &$form_state) {
   // Redirect back to view page or admin page
   if (_views_ui_basic_is_tab()) {
     $menuitem = menu_get_item();
-    drupal_goto($menuitem['tab_root']);  
+    drupal_goto($menuitem['tab_root']);
   }
   else {
     drupal_goto("admin/content/views_ui_basic");
-  } 
+  }
 }
 
 /**
@@ -127,20 +174,25 @@ function views_ui_basic_save($form, &$form_state) {
  * @see views_ui_basic_form_alter() for form tweaks
  */
 function views_ui_basic_edit_page($view_name, $display_name, $area) {
-  
+
   $fields = variable_get('views_ui_basic_fields', array());
   if (!isset($fields[$area])) {
-    return FALSE;    
+    return FALSE;
   }
-  
+
   $path = drupal_get_path('module', 'views_ui');
-  require_once "$path/includes/admin.inc"; 
-  
+  require_once "$path/includes/admin.inc";
+
   $view = views_get_view($view_name);
+  $view->init_display();
 
-  return views_ui_ajax_form(false, 'display', $view, $display_name, $area);  
+
+  $form_state['section'] = $display_name;
+
+  $display = &$view->display[$display_name];
+
+  return views_ui_ajax_form(false, 'display', $view, $display_name, $area);
 }
-
 
 /**
  * List Views that site administer has selected.
@@ -149,16 +201,16 @@ function views_ui_basic_edit_page($view_name, $display_name, $area) {
 function views_ui_basic_list_page() {
   $fields = _views_ui_basic_fields();
   $fields_allowed = variable_get('views_ui_basic_fields', array());
-  
+
   $views = views_get_all_views();
-  $items = array(); // for theme_item_list
+  $items = array(); // For theme_item_list
 
   $allowed = variable_get('views_ui_basic', array());
 
   foreach ($views as $view_key => $view_object) {
     if (isset($allowed[$view_key])) {
       $title = (isset($view_object->display['page'])) ? l($view_key, $view_object->display['page']->display_options['path']) : $view_key;
-      
+
       $items[$view_key][] = "<h4>$title</h4>";
       foreach ($view_object->display as $display_key => $views_display) {
         if (in_array($display_key, $allowed[$view_key])) {
@@ -173,7 +225,7 @@ function views_ui_basic_list_page() {
             }
             $editlink[] = l("$fields[$field]", "views_ui_basic/$view_key/$display_key/$field", array('attributes' => array('title' => $value)));
           }
-          
+
           $item = "$display_key ($views_display->display_title) Edit: " . implode(' | ', $editlink);
           /*
           //print_r($views_display);
@@ -182,7 +234,7 @@ function views_ui_basic_list_page() {
             l("edit header", "views_ui_basic/$view_key/$display_key/header") . ' | ' .
             l("edit footer", "views_ui_basic/$view_key/$display_key/footer");
           */
-          
+
           if ($header = node_teaser($views_display->display_options['header'], 1)) {
             $header = check_markup($header, $views_display->display_options['header_format']);
             $item .= "<fieldset><legend>" . l("Header", "views_ui_basic/$view_key/$display_key/header") . "</legend>$header</fieldset>";
@@ -195,10 +247,10 @@ function views_ui_basic_list_page() {
 
           $items[$view_key]['children'][$display_key][] = $item;
         }
-      }  
+      }
     }
   }
-  
+
   if (!empty($items)) {
     return theme('item_list', $items);
   }
@@ -214,67 +266,67 @@ function views_ui_basic_list_page() {
 /**
  * Retrieve Views pages
  * @todo if default selected, check if overriden view is also selected
- */ 
+ */
 function _views_ui_basic_get_pages() {
   $views = views_get_all_views();
   $allowed = variable_get('views_ui_basic', array());
-  
+
   $items = array();
 
   foreach ($views as $view_key => $view_object) {
     if (isset($allowed[$view_key])) {
-      
+
       foreach ($view_object->display as $display_key => $view_display) {
         // If default selected, return all pages
         if(
           $view_display->display_plugin == 'page' &&
-          (in_array($display_key, $allowed[$view_key]) || ($allowed[$view_key][0] == 'default')) 
+          (in_array($display_key, $allowed[$view_key]) || ($allowed[$view_key][0] == 'default'))
           ) {
- 
+
           $items[$view_display->display_options['path']] = array(
             'view_name' => $view_key,
             'display_name' => $display_key,
           );
-          
+
         }
       }
     }
   }
-  
+
   return $items;
-  
 }
 
 /**
  * Is the current page the edit form with a tab (local task)?
  * @return boolen
- */ 
+ */
 function _views_ui_basic_is_tab() {
   $menuitem = menu_get_item(); // accessed via our edit tab?
   return (arg(0) != 'views_ui_basic' && isset($menuitem['page_callback']) && $menuitem['page_callback'] == 'views_ui_basic_edit_page');
 }
 
-
 /**
  * Generate local tasks (menu tabs) for View pages
- */ 
+ */
 function _views_ui_basic_define_menu(&$items) {
   // Determine tabs
   $fields = _views_ui_basic_fields();
   foreach (variable_get('views_ui_basic_fields', array()) as $field) {
     $tabs[$field] = $fields[$field];
   }
-  
+
   if (!isset($tabs)) {
     return;
   }
-  
+
   $first_field = key($tabs);
-  
+
   $weight = 10;
-   
+
   $views_pages = _views_ui_basic_get_pages();
-  
+
+  // views_ui_basic/test/default/header
+
   foreach ($views_pages as $path => $viewinfo) {
 
     // View/Edit tabs
@@ -291,8 +343,7 @@ function _views_ui_basic_define_menu(&$items) {
       'weight' => ++$weight,
       'access arguments' => array('edit views basic settings'),
     );
-    
-    
+
     // Sub tabs
     foreach ($tabs as $field => $label) {
       if($field == $first_field) {
@@ -301,8 +352,8 @@ function _views_ui_basic_define_menu(&$items) {
           'type' => MENU_DEFAULT_LOCAL_TASK,
           'weight' => -10,
           'access arguments' => array('edit views basic settings'),
-        );        
-      } 
+        );
+      }
       else {
         $items["$path/views_ui_edit/$field"] = array(
           'title' => $label,
@@ -312,8 +363,8 @@ function _views_ui_basic_define_menu(&$items) {
           'type' => MENU_LOCAL_TASK,
           'weight' => ++$weight,
         );
-        
-      }      
-    }    
-  }    
+
+      }
+    }
+  }
 }
