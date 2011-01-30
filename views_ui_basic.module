@@ -2,8 +2,8 @@
 // $Id$
 
 /**
- * @file views_ui_basic.module
- * User interface to edit basic settings of Views.
+ * @file
+ * User interface to edit basic settings of Views 7.x-3.x.
  */
 
 /**
@@ -15,7 +15,7 @@ function _views_ui_basic_fields() {
     'footer' => t('Footer'),
     'title'  => t('Title'),
     'empty'  => t('Empty text'),
-    'items_per_page' => t('Items per page'),
+    'pager_options' => t('Pager options'),
   );
 }
 
@@ -26,20 +26,20 @@ function views_ui_basic_menu() {
   $items = array();
 
   $items['admin/content/views_ui_basic'] = array(
-    'title' => t('Edit views'),
+    'title' => 'Edit views',
     'page callback' => 'views_ui_basic_list_page',
     'access arguments' => array('edit views basic settings'),
-    'type' => MENU_NORMAL_ITEM
+    'type' => MENU_NORMAL_ITEM,
   );
   $items['views_ui_basic'] = array( // different URI to support rich text editors
-    'title' => t('Edit basic settings'),
-    'page callback' => 'views_ui_basic_edit_page',
+    'title' => 'Edit basic settings',
+    'page callback' => 'views_ui_basic_edit_form',
     'page arguments' => array(1, 2, 3),
     'access arguments' => array('edit views basic settings'),
     'type' => MENU_CALLBACK
   );
-  $items['admin/build/views/views_ui_basic'] = array(
-    'title' => t('Editable basic settings'),
+  $items['admin/structure/views/views_ui_basic'] = array(
+    'title' => 'Editable basic settings',
     'page callback' => 'drupal_get_form',
     'page arguments' => array('views_ui_basic_admin_form'),
     'access arguments' => array('administer views'),
@@ -55,17 +55,46 @@ function views_ui_basic_menu() {
 }
 
 /**
- * Implements hook_perm().
+ * Implements hook_admin_paths().
  */
-function views_ui_basic_perm() {
-  return array('edit views basic settings');
+function views_ui_basic_admin_paths() {
+  $items = array();
+  _views_ui_basic_define_menu($items);
+  if ($items) {
+    $paths = array_keys($items);
+    $paths = array_combine($paths, array_fill(1, count($paths), TRUE));
+  }
+  return $paths;
+}
+
+/**
+ * Implements hook_permission().
+ */
+function views_ui_basic_permission() {
+  return array('edit views basic settings' =>
+    array(
+      'title' => t('Edit views basic settings'),
+      'description' => t('Edit basic settings such as header, footer, empty text, etc.'),
+    )
+  );
 }
 
 /**
  * Implements hook_form_alter().
  */
-function views_ui_basic_form_alter(&$form, $form_state, $form_id) {
-  if ((arg(0) == 'views_ui_basic' || _views_ui_basic_is_tab()) && $form_id == 'views_ui_edit_display_form') {
+function views_ui_basic_form_alter(&$form, &$form_state, $form_id) {
+  if ((arg(0) == 'views_ui_basic' || _views_ui_basic_is_tab()) && ($form_id == 'views_ui_edit_display_form' || $form_id == 'views_ui_config_item_form')) {
+
+    // Views 3.x
+    if ($form_id == 'views_ui_config_item_form') {
+      unset($form['options']['override']);
+      
+      // Keep track of switch form value
+      $form['config_area'] = array(
+        '#type' => 'hidden',
+        '#value' => $form_state['id'],
+      );
+    }
 
     // WYSIWYG support
     if (module_exists('wysiwyg')) {
@@ -79,7 +108,9 @@ function views_ui_basic_form_alter(&$form, $form_state, $form_id) {
       $form = $form_rename;
     }
 
+    unset($form['buttons']['override_update']);
     unset($form['buttons']['cancel']);
+    unset($form['buttons']['remove']);
     unset($form['override']);
 
     // We'll override the Views setting on submit.
@@ -109,11 +140,11 @@ function views_ui_basic_preprocess_page(&$vars) {
 
     if (isset($tabpages)) {
       $tabs = theme('menu_local_task', theme('menu_item_link', array(
-        'title' => '< Edit views', 
-        'href'  => 'admin/content/views_ui_basic', 
+        'title' => '< Edit views',
+        'href'  => 'admin/content/views_ui_basic',
         'type'  => MENU_LOCAL_TASK,
       )));
-      
+
       foreach ($tabpages as $field => $label) {
         $link = array(
           'title' => $label,
@@ -131,32 +162,38 @@ function views_ui_basic_preprocess_page(&$vars) {
 /**
  * Views save/submit handler (overrides Views UI)
  * Redirects afer save.
- * @see views_ui_basic_form_alter().
+ * @see views_ui_basic_form_alter()
  */
 function views_ui_basic_submit($form, &$form_state) {
 
+  // Save setting as "overriden"
+  $section_override = $form_state['section'];
+  if ($section_override == 'pager_options') {
+    $section_override = 'pager';
+  }
+
   $display = &$form_state['view']->display[$form_state['display_id']];
+  $display->handler->set_override($section_override, FALSE);
 
-  // Do not save as default Views value; instead save field value as "override"
-  $display->display_options['defaults'][$form_state['section']] = NULL;
-  $display->handler->options['defaults'][$form_state['section']] = NULL;
+  // Views 3.x config item
+  if ($form_state['form_id'] == 'views_ui_config_item_form') {
+    views_ui_config_item_form_submit($form, $form_state);
+  }
+  // Options/settings
+  else {
+    $display = &$form_state['view']->display[$form_state['display_id']];
+    $display->handler->options_submit($form, $form_state);
+  }
 
-  $display->handler->options_submit($form, $form_state);
   $form_state['view']->save();
 
   drupal_set_message(t('The !section has been updated.', array('!section' => str_replace('_', ' ', $form_state['section']))));
-
-  // Make sure menu items get rebuilt as necessary
-  menu_rebuild();
 
   // Clear the views cache.
   cache_clear_all('*', 'cache_views');
 
   // Clear the page cache.
   cache_clear_all();
-
-  // Remove this view from cache so we can edit it properly.
-  views_object_cache_clear('view', $form_state['view']->name);
 
   // Redirect back to view page or admin page
   if (_views_ui_basic_is_tab()) {
@@ -171,27 +208,126 @@ function views_ui_basic_submit($form, &$form_state) {
 /**
  * Edit a View's setting (e.g., header/footer/empty text, etc)
  * @return string (rendered views UI form).
- * @see views_ui_basic_form_alter() for form tweaks
+ * @see views_ui_basic_form_alter()
  */
-function views_ui_basic_edit_page($view_name, $display_name, $area) {
+function views_ui_basic_edit_form($view_name, $display_name, $type) {  
+  $output = '';
 
   $fields = variable_get('views_ui_basic_fields', array());
-  if (!isset($fields[$area])) {
+  if (!isset($fields[$type])) {
     return FALSE;
   }
-
+  
   $path = drupal_get_path('module', 'views_ui');
   require_once "$path/includes/admin.inc";
 
   $view = views_get_view($view_name);
   $view->init_display();
 
+  // Views 3.x config items (not a "display" setting)
+  $config_item = array('header', 'footer', 'empty');
+  $config_area = (isset($_POST['config_area'])) ? $_POST['config_area'] : 'area';
+  
+  
+  // Find view_area to edit
+
+  $view_area = (isset($view->display[$display_name]->display_options[$type])) ? $view->display[$display_name]->display_options[$type] : NULL;
+
+  // Does default exist?
+  if (!$view_area && isset($view->display['default']->display_options[$type])) {
+    $view_area_default = $view->display['default']->display_options[$type];
+  }
+  $is_default = $view->display[$display_name]->handler->options['defaults'][$type];
+
+  // If empty config item and empty default, auto-create add form.
+  if (in_array($type, $config_item) && empty($view_area) && (empty($view_area_default) || !$is_default)) {
+    // Replicate keys needed for views_ui_add_item_form_submit().
+    $form_state = array(
+      'view' => $view,
+      'type' => $type,
+      'display_id' => $display_name,
+      'values' => array(
+        'name' => array('views.area' => 'views.area'),
+        'op' => t('Add'),
+      ),
+    );
+
+    $form = array();
+
+    // @ to hide Views debug message
+    @views_ui_add_item_form_submit($form, $form_state);
+  }
+  // Create drop-down for switching areas.
+  elseif (is_array($view_area) && count($view_area) > 1) {
+    foreach ($view_area as $key => $area) {
+      if (isset($area['ui_name']) && $area['ui_name']) {
+        $title = $area['ui_name'];
+      }
+      elseif (isset($area['label']) && $area['label']) {
+        $title = $area['label'];
+      }
+      else {
+        $title = t('Text area');
+      }
+      $options[$key] = $title;
+    }    
+
+    $switch_form = drupal_get_form('views_ui_basic_switch_form', $type, $options);
+    if ($switch_form['area']['#default_value']) {
+      $config_area = $switch_form['area']['#default_value'];
+    }
+    $output .= render($switch_form);
+  }
 
   $form_state['section'] = $display_name;
 
-  $display = &$view->display[$display_name];
+  $key = (in_array($type, $config_item)) ? 'config-item' : 'display';
+  $output .= views_ui_ajax_form(FALSE, $key, $view, $display_name, $type, $config_area);
 
-  return views_ui_ajax_form(false, 'display', $view, $display_name, $area);
+  // Remove non-compatible HTML in title (Views bug?)
+  $title = drupal_get_title();
+  $title = str_replace('&lt;em class=&quot;placeholder&quot;&gt;', ' - ', $title);
+  $title = str_replace('&lt;/em&gt;', '', $title);
+  drupal_set_title($title);
+
+  return $output;
+}
+
+/**
+ * Switch between config items (for Views 3.x)
+ * @param $options
+ *   Select drop-down values
+ */
+function views_ui_basic_switch_form($form, $form_state, $view_type, $options) {
+  $form['#suffix'] = '<div class="clearfix"></div><hr/>';
+  $form['#view_type'] = $view_type;
+  
+  $default_value = (isset($form_state['storage']) && isset($form_state['storage']['area']))
+    ? $default_value = $form_state['storage']['area']
+    : NULL;
+  
+  $form['area'] = array(
+    '#type' => 'select',
+    '#options' => $options,
+    '#default_value' => $default_value,
+    '#prefix' => '<div style="float:left;">',
+    '#suffix' => '</div>',
+    '#attributes' => array('onchange' => 'this.form.submit();'),
+  );
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#attributes' => array('style' => 'margin:0.5em;'),
+    '#value' => t('Switch Area'),
+  );
+  return $form;
+}
+
+/**
+ * Submit handler for switch area form.
+ */
+function views_ui_basic_switch_form_submit($form, &$form_state) {
+  $form_state['rebuild'] = TRUE; // Multi-step for storage.
+  $form_state['storage']['area'] = $form_state['values']['area'];
 }
 
 /**
@@ -218,32 +354,17 @@ function views_ui_basic_list_page() {
           foreach ($fields_allowed as $field) {
             $defaults = isset($views_display->display_options['defaults']) ? $views_display->display_options['defaults'] : array();
             if (!isset($defaults[$field])) {
-              $value = isset($view_object->display['default']->display_options[$field]) ? substr(strip_tags($view_object->display['default']->display_options[$field]), 0, 100) : '';
+              $value = isset($view_object->display['default']->display_options[$field]) ? $view_object->display['default']->display_options[$field] : '';
             }
             else {
-              $value = isset($views_display->display_options[$field]) ? substr(strip_tags($views_display->display_options[$field]), 0, 100) : '';
+              $value = isset($views_display->display_options[$field]) ? $views_display->display_options[$field] : '';
             }
+            $value = ($value && !is_array($value)) ? substr(strip_tags($value), 0, 100) : '';
+
             $editlink[] = l("$fields[$field]", "views_ui_basic/$view_key/$display_key/$field", array('attributes' => array('title' => $value)));
           }
 
           $item = "$display_key ($views_display->display_title) Edit: " . implode(' | ', $editlink);
-          /*
-          //print_r($views_display);
-          $item =
-            "$display_key ($views_display->display_title) " .
-            l("edit header", "views_ui_basic/$view_key/$display_key/header") . ' | ' .
-            l("edit footer", "views_ui_basic/$view_key/$display_key/footer");
-          */
-
-          if ($header = node_teaser($views_display->display_options['header'], 1)) {
-            $header = check_markup($header, $views_display->display_options['header_format']);
-            $item .= "<fieldset><legend>" . l("Header", "views_ui_basic/$view_key/$display_key/header") . "</legend>$header</fieldset>";
-          }
-
-          if ($footer = node_teaser($views_display->display_options['footer'], 1)) {
-            $footer = check_markup($footer, $views_display->display_options['footer_format']);
-            $item .= "<fieldset><legend>" . l("Footer", "views_ui_basic/$view_key/$display_key/footer") . "</legend>$footer</fieldset>";
-          }
 
           $items[$view_key]['children'][$display_key][] = $item;
         }
@@ -278,7 +399,7 @@ function _views_ui_basic_get_pages() {
 
       foreach ($view_object->display as $display_key => $view_display) {
         // If default selected, return all pages
-        if(
+        if (
           $view_display->display_plugin == 'page' &&
           (in_array($display_key, $allowed[$view_key]) || ($allowed[$view_key][0] == 'default'))
           ) {
@@ -302,7 +423,7 @@ function _views_ui_basic_get_pages() {
  */
 function _views_ui_basic_is_tab() {
   $menuitem = menu_get_item(); // accessed via our edit tab?
-  return (arg(0) != 'views_ui_basic' && isset($menuitem['page_callback']) && $menuitem['page_callback'] == 'views_ui_basic_edit_page');
+  return (arg(0) != 'views_ui_basic' && isset($menuitem['page_callback']) && $menuitem['page_callback'] == 'views_ui_basic_edit_form');
 }
 
 /**
@@ -331,13 +452,13 @@ function _views_ui_basic_define_menu(&$items) {
 
     // View/Edit tabs
     $items["$path/view_ui_view"] = array(
-      'title' => t('View'),
+      'title' => 'View',
       'type' => MENU_DEFAULT_LOCAL_TASK,
       'weight' => -10,
     );
     $items["$path/views_ui_edit"] = array(
-      'title' => t('Edit'),
-      'page callback' => 'views_ui_basic_edit_page',
+      'title' => 'Edit',
+      'page callback' => 'views_ui_basic_edit_form',
       'page arguments' => array($viewinfo['view_name'], $viewinfo['display_name'], $first_field),
       'type' => MENU_LOCAL_TASK,
       'weight' => ++$weight,
@@ -346,7 +467,7 @@ function _views_ui_basic_define_menu(&$items) {
 
     // Sub tabs
     foreach ($tabs as $field => $label) {
-      if($field == $first_field) {
+      if ($field == $first_field) {
         $items["$path/views_ui_edit/$first_field"] = array(
           'title' => $label,
           'type' => MENU_DEFAULT_LOCAL_TASK,
@@ -357,13 +478,12 @@ function _views_ui_basic_define_menu(&$items) {
       else {
         $items["$path/views_ui_edit/$field"] = array(
           'title' => $label,
-          'page callback' => 'views_ui_basic_edit_page',
+          'page callback' => 'views_ui_basic_edit_form',
           'page arguments' => array($viewinfo['view_name'], $viewinfo['display_name'], $field),
           'access arguments' => array('edit views basic settings'),
           'type' => MENU_LOCAL_TASK,
           'weight' => ++$weight,
         );
-
       }
     }
   }
