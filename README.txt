@@ -1,4 +1,3 @@
-// $Id$
 
 =============================
 Views UI: Edit Basic Settings

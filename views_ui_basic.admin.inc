@@ -1,5 +1,4 @@
 <?php
-// $Id$
 
 /**
  * @file views_ui_basic.admin.inc
