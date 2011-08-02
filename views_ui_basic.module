@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file
  * User interface to edit basic settings of Views 7.x-3.x.
@@ -88,7 +87,7 @@ function views_ui_basic_form_alter(&$form, &$form_state, $form_id) {
     // Views 3.x
     if ($form_id == 'views_ui_config_item_form') {
       unset($form['options']['override']);
-      
+
       // Keep track of switch form value
       $form['config_area'] = array(
         '#type' => 'hidden',
@@ -97,16 +96,7 @@ function views_ui_basic_form_alter(&$form, &$form_state, $form_id) {
     }
 
     // WYSIWYG support
-    if (module_exists('wysiwyg')) {
-      $form_rename = array(); // Format key must be renamed and same key order maintained
-      foreach ($form as $key => $value) {
-        if (strpos($key, '_format') !== FALSE) { // e.g., 'header_format' to 'format'
-          $key = 'format';
-        }
-        $form_rename[$key] = $value;
-      }
-      $form = $form_rename;
-    }
+    _views_ui_basic_enable_wysiwyg($form);
 
     unset($form['buttons']['override_update']);
     unset($form['buttons']['cancel']);
@@ -210,14 +200,14 @@ function views_ui_basic_submit($form, &$form_state) {
  * @return string (rendered views UI form).
  * @see views_ui_basic_form_alter()
  */
-function views_ui_basic_edit_form($view_name, $display_name, $type) {  
+function views_ui_basic_edit_form($view_name, $display_name, $type) {
   $output = '';
 
   $fields = variable_get('views_ui_basic_fields', array());
   if (!isset($fields[$type])) {
     return FALSE;
   }
-  
+
   $path = drupal_get_path('module', 'views_ui');
   require_once "$path/includes/admin.inc";
 
@@ -227,8 +217,8 @@ function views_ui_basic_edit_form($view_name, $display_name, $type) {
   // Views 3.x config items (not a "display" setting)
   $config_item = array('header', 'footer', 'empty');
   $config_area = (isset($_POST['config_area'])) ? $_POST['config_area'] : 'area';
-  
-  
+
+
   // Find view_area to edit
 
   $view_area = (isset($view->display[$display_name]->display_options[$type])) ? $view->display[$display_name]->display_options[$type] : NULL;
@@ -270,7 +260,7 @@ function views_ui_basic_edit_form($view_name, $display_name, $type) {
         $title = t('Text area');
       }
       $options[$key] = $title;
-    }    
+    }
 
     $switch_form = drupal_get_form('views_ui_basic_switch_form', $type, $options);
     if ($switch_form['area']['#default_value']) {
@@ -301,11 +291,11 @@ function views_ui_basic_edit_form($view_name, $display_name, $type) {
 function views_ui_basic_switch_form($form, $form_state, $view_type, $options) {
   $form['#suffix'] = '<div class="clearfix"></div><hr/>';
   $form['#view_type'] = $view_type;
-  
+
   $default_value = (isset($form_state['storage']) && isset($form_state['storage']['area']))
     ? $default_value = $form_state['storage']['area']
     : NULL;
-  
+
   $form['area'] = array(
     '#type' => 'select',
     '#options' => $options,
@@ -486,5 +476,24 @@ function _views_ui_basic_define_menu(&$items) {
         );
       }
     }
+  }
+}
+
+/**
+ * Enable WYSIWYG by recursively searching array.
+ */
+function _views_ui_basic_enable_wysiwyg(&$form_element) {
+  foreach ($form_element as $key => $value) {
+    if (is_array($value)) {
+      if (isset($value['#wysiwyg'])) {
+        $form_element[$key]['#wysiwyg'] = TRUE;
+      }
+      else {
+        _views_ui_basic_enable_wysiwyg($form_element[$key]);
+      }
+
+    }
+
+
   }
 }
