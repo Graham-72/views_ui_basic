@@ -1,5 +1,4 @@
 <?php
-
 /**
  * @file views_ui_basic.admin.inc
  * Admin form to setup editable views & fields
