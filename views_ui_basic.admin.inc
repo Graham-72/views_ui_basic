@@ -8,7 +8,7 @@
  * Admin form
  */
 function views_ui_basic_admin_form() {
-  $form["#prefix"] = '<p>' . t('Use this form to define which Views may be editable by users with the "' . l('edit views basic settings', 'admin/user/permissions').'" permission.') . '</p><p>' . t('Please note that the  "override" button will be hidden, so if your view uses multiple displays, you will probably want to modify the header/footer/empty text/title/etc fields to be "overriden," otherwise it will update the default display when the user goes in and modifies them.') . '</p>';
+  $form["#prefix"] = '<p>' . t('Use this form to define which Views may be editable by users with the "' . l('edit views basic settings', 'admin/people/permissions').'" permission.') . '</p><p>' . t('Please note that the  "override" button will be hidden, so if your view uses multiple displays, you will probably want to modify the header/footer/empty text/title/etc fields to be "overriden," otherwise it will update the default display when the user goes in and modifies them.') . '</p>';
 
   $form['fsfields'] = array(
     '#type'  => 'fieldset',
@@ -30,15 +30,19 @@ function views_ui_basic_admin_form() {
     '#title' => t('Views'),
   );
 
-
   foreach ($views as $view_key => $view_object) {
     if (!isset($view_object->disabled) || !$view_object->disabled) {
-
-      $form['fsviews']["{$view_key}_fieldset"] = array(
-        '#title' => $view_key . ' [' . l(t('edit view'), "admin/build/views/edit/$view_key", array('attributes' => array('target' => '_blank'))) . ']',
-        '#type' => 'fieldset',
-      );
-
+      if (!empty($view_object->description)) {
+        $form['fsviews']["{$view_key}_fieldset"] = array(
+          '#title' => $view_object->description . ' ('. $view_key .') | ' . l(t('edit view'), "admin/structure/views/view/$view_key/edit/", array('attributes' => array('target' => '_blank'))),
+          '#type' => 'fieldset',
+        );
+      } else {
+        $form['fsviews']["{$view_key}_fieldset"] = array(
+          '#title' => $view_key . ' | ' . l(t('edit view'), "admin/structure/views/view/$view_key/edit/", array('attributes' => array('target' => '_blank'))),
+          '#type' => 'fieldset',
+        );
+      }
       $options = array();
       foreach ($view_object->display as $display_key => $views_display) {
         $title = $views_display->display_title;

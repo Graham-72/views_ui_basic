@@ -170,7 +170,7 @@ function views_ui_basic_preprocess_page(&$vars) {
         $tabs .= theme('menu_local_task', $variables);
       }
     }
-    $vars['tabs'] = "<ul class=\"tabs primary clearfix\">\n". $tabs ."</ul>\n";
+    $vars['tabs'] = '<ul class="tabs primary clearfix">'. $tabs .'</ul>';
   }
 }
 
@@ -378,8 +378,12 @@ function views_ui_basic_list_page() {
 
             $editlink[] = l("$fields[$field]", "views_ui_basic/$view_key/$display_key/$field", array('attributes' => array('title' => $value)));
           }
-
-          $item = "$display_key ($views_display->display_title) Edit: " . implode(' | ', $editlink);
+          $displayname = $views_display->display_options['title'];
+          if (!empty($displayname)) {
+            $item = "$displayname ($views_display->display_title) Edit: " . implode(' | ', $editlink);
+          } else {
+            $item = "$display_key ($views_display->display_title) Edit: " . implode(' | ', $editlink);
+          }
 
           $items[$view_key]['children'][$display_key][] = $item;
         }
@@ -391,10 +395,9 @@ function views_ui_basic_list_page() {
     return theme('item_list', array('items' => $items));
   }
   else {
-    return 'No Views configured. Please ' . l('select the views', 'admin/build/views/views_ui_basic') . ' you wish to use.';
-  }
+    return 'No Views configured. Please ' . l('select the views', 'admin/structure/views/views_ui_basic') . ' you wish to use.';
+	}
 }
-
 //
 // Internal helper functions
 //
