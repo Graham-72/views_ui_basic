@@ -202,7 +202,7 @@ function views_ui_basic_submit($form, &$form_state) {
 
   $form_state['view']->save();
 
-  drupal_set_message(t('The !section has been updated.', array('!section' => str_replace('_', ' ', $form_state['section']))));
+  drupal_set_message(t('The @section has been updated.', array('@section' => str_replace('_', ' ', $form_state['section']))));
 
   // Clear the views cache.
   cache_clear_all('*', 'cache_views');
