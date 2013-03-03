@@ -9,9 +9,9 @@
  */
 function _views_ui_basic_fields() {
   return array( // Views form name => label
+    'title'  => t('Title'),
     'header' => t('Header'),
     'footer' => t('Footer'),
-    'title'  => t('Title'),
     'empty'  => t('Empty text'),
     'pager_options' => t('Pager options'),
   );
