@@ -3,6 +3,4 @@ description = Interface to edit basic Views settings, such as headers, footers, 
 package = Views
 core = 7.x
 dependencies[] = views
-files[] = views_ui_basic.module
-files[] = views_ui_basic.admin.inc
 configure = admin/structure/views/views_ui_basic
