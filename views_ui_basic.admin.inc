@@ -73,7 +73,6 @@ function views_ui_basic_admin_form() {
  */
 function views_ui_basic_admin_form_submit($form, &$form_state) {
   $save = array();
-  $views = views_get_all_views();
 
   variable_set('views_ui_basic_fields',  array_filter($form_state['values']['fields']));
 
