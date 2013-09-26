@@ -340,7 +340,7 @@ function views_ui_basic_list_page() {
 
             $editlink[] = l("$fields[$field]", "views_ui_basic/$view_key/$display_key/$field", array('attributes' => array('title' => $value)));
           }
-          $displayname = $views_display->display_options['title'];
+          $displayname = $views_display->display_title ;
           if (!empty($displayname)) {
             $item = "$displayname ($views_display->display_title) Edit: " . implode(' | ', $editlink);
           } else {
