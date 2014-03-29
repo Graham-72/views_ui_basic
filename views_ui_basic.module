@@ -175,7 +175,7 @@ function views_ui_basic_submit($form, &$form_state) {
   // Redirect back to view page or admin page
   if (_views_ui_basic_is_tab()) {
     $menuitem = menu_get_item();
-    drupal_goto($menuitem['tab_root']);
+    drupal_goto($menuitem['tab_root_href']);
   }
   else {
     drupal_goto("admin/content/views_ui_basic");
