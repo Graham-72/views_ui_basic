@@ -84,7 +84,8 @@ function views_ui_basic_admin_form_submit($form, &$form_state) {
 
   variable_set('views_ui_basic', $save);
 
-  menu_rebuild(); // Rebuild our hook_menu() tabs
+  // Rebuild our menu tabs.
+  variable_set('menu_rebuild_needed', TRUE);
 
   drupal_set_message(t('Views settings have been saved.'));
 }
