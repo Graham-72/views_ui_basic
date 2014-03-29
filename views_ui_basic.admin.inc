@@ -86,6 +86,8 @@ function views_ui_basic_admin_form_submit($form, &$form_state) {
 
   // Rebuild our menu tabs.
   variable_set('menu_rebuild_needed', TRUE);
+  // Empty path cache so paths are loaded in overlay if needed.
+  cache_clear_all('views_ui_basic_paths', 'cache');
 
   drupal_set_message(t('Views settings have been saved.'));
 }
