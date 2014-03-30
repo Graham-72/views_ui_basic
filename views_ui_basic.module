@@ -212,7 +212,6 @@ function views_ui_basic_edit_form($view_name, $display_name, $type) {
   $config_area = (isset($_POST['config_area'])) ? $_POST['config_area'] : 'area';
 
   // Find view_area to edit
-
   $view_area = (isset($view->display[$display_name]->display_options[$type])) ? $view->display[$display_name]->display_options[$type] : NULL;
 
   // Does default exist?
@@ -228,7 +227,7 @@ function views_ui_basic_edit_form($view_name, $display_name, $type) {
     $view_area = NULL;
   }
   else {
-    $is_default = $view->display[$display_name]->handler->options['defaults'][$type];
+    $is_default = !empty($view->display[$display_name]->handler->options['defaults'][$type]);
   }
 
   // If empty config item and empty default, auto-create add form.
