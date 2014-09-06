@@ -95,7 +95,7 @@ function views_ui_basic_permission() {
  * Implements hook_block_view_alter().
  */
 function views_ui_basic_block_view_alter(&$build, $block) {
-  if ($block->module == 'views' && isset($build['content']) && is_array($build['content'])) {
+  if ($block->module == 'views' && isset($build['content']) && is_array($build['content']) && !empty($build['content']['#views_contextual_links_info'])) {
     $info = $build['content']['#views_contextual_links_info']['views_ui'];
     $contextual_links = array(
       'views_ui_basic', array($info['view_name'], $info['view_display_id']),
