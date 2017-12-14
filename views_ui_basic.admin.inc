@@ -17,13 +17,13 @@ function views_ui_basic_admin_form() {
   );
   $form['fsfields']['fields'] = array(
     '#type' => 'checkboxes',
-    '#options' => _views_ui_basic_fields(),
-    '#default_value' => variable_get('views_ui_basic_fields', array()),
+    '#options' => config_get('views_ui_basic.settings','views_ui_basic_default'),
+    '#default_value' => config_get('views_ui_basic.settings','views_ui_basic_fields'),
   );
 
   $views = views_get_all_views();
 
-  $saved = variable_get('views_ui_basic', array());
+  $saved = config_get('views_ui_basic.settings','views_ui_basic');
 
   $form['fsviews'] = array(
     '#type'  => 'fieldset',
@@ -34,12 +34,12 @@ function views_ui_basic_admin_form() {
     if (!isset($view_object->disabled) || !$view_object->disabled) {
       if (!empty($view_object->description)) {
         $form['fsviews']["{$view_key}_fieldset"] = array(
-          '#title' => $view_object->description . ' ('. $view_key .') | ' . l(t('edit view'), "admin/structure/views/view/$view_key/edit/", array('attributes' => array('target' => '_blank'))),
+          '#title' => $view_object->description . ' ('. $view_key .') | ' . l(t('edit view'), "admin/structure/views/view/$view_key/"),
           '#type' => 'fieldset',
         );
       } else {
         $form['fsviews']["{$view_key}_fieldset"] = array(
-          '#title' => $view_key . ' | ' . l(t('edit view'), "admin/structure/views/view/$view_key/edit/", array('attributes' => array('target' => '_blank'))),
+          '#title' => $view_key . ' | ' . l(t('edit view'), "admin/structure/views/view/$view_key/"),
           '#type' => 'fieldset',
         );
       }
@@ -74,20 +74,20 @@ function views_ui_basic_admin_form() {
 function views_ui_basic_admin_form_submit($form, &$form_state) {
   $save = array();
 
-  variable_set('views_ui_basic_fields',  array_filter($form_state['values']['fields']));
+  config_set('views_ui_basic.settings','views_ui_basic_fields',  array_filter($form_state['values']['fields']));
 
   foreach ($form_state['values'] as $k => $v) {
-    if ($k != 'fields' && is_array($v) && $v_nozero = array_filter($v)) { // remove 0 value
+    if ($k != 'fields' && is_array($v) && $v_nozero = array_filter($v)) {
       $save[$k] = array_keys($v_nozero);
     }
   }
 
-  variable_set('views_ui_basic', $save);
+  config_set('views_ui_basic.settings','views_ui_basic', $save);
 
   // Rebuild our menu tabs.
-  variable_set('menu_rebuild_needed', TRUE);
+  config_set('views_ui_basic.settings','menu_rebuild_needed', TRUE);
   // Empty path cache so paths are loaded in overlay if needed.
   cache_clear_all('views_ui_basic_paths', 'cache');
 
-  drupal_set_message(t('Views settings have been saved.'));
+  backdrop_set_message(t('Views settings have been saved.'));
 }

@@ -1,26 +1,15 @@
 <?php
 /**
- * @file
- * User interface to edit basic settings of Views 7.x-3.x.
+ * @file views_ui_basic.module
+ * User interface to edit basic settings of Views.
  */
 
 /**
  * Return list of editable fields.
  */
 function _views_ui_basic_fields() {
-  $fields = array( // Views form name => label
-    'title'  => t('Title'),
-    'header' => t('Header'),
-    'footer' => t('Footer'),
-    'empty'  => t('Empty text'),
-    'pager_options' => t('Pager options'),
-  );
-
-  if (module_exists('metatag_views')) {
-    $fields['metatags'] = t('Meta tags');
-  }
-
-  return $fields;
+  $fields = config_get('views_ui_basic.settings','views_ui_basic_fields');
+		return $fields;
 }
 
 /**
@@ -35,7 +24,8 @@ function views_ui_basic_menu() {
     'access arguments' => array('edit views basic settings'),
     'type' => MENU_LOCAL_TASK,
   );
-  $items['views_ui_basic'] = array( // different URI to support rich text editors
+		// different URI to support rich text editors
+  $items['views_ui_basic'] = array(
     'title' => 'Edit basic settings',
     'page callback' => 'views_ui_basic_edit_form',
     'page arguments' => array(1, 2, 3),
@@ -44,7 +34,7 @@ function views_ui_basic_menu() {
   );
   $items['admin/structure/views/views_ui_basic'] = array(
     'title' => 'Editable basic settings',
-    'page callback' => 'drupal_get_form',
+    'page callback' => 'backdrop_get_form',
     'page arguments' => array('views_ui_basic_admin_form'),
     'access arguments' => array('administer views'),
     'type' => MENU_LOCAL_TASK,
@@ -121,26 +111,26 @@ function views_ui_basic_form_alter(&$form, &$form_state, $form_id) {
       );
     }
 
-    // WYSIWYG support
-    _views_ui_basic_enable_wysiwyg($form);
 
-    unset($form['buttons']['override_update']);
-    unset($form['buttons']['cancel']);
-    unset($form['buttons']['remove']);
+
+    unset($form['actions']['override_update']);
+    unset($form['actions']['cancel']);
+    unset($form['actions']['remove']);
     unset($form['override']);
 
     // We'll override the Views setting on submit.
-    if ($form['buttons']['submit']['#value'] == t('Update default display')) {
-      $form['buttons']['submit']['#value'] = t('Update');
+    if ($form['actions']['submit']['#value'] == t('Update default display')) {
+      $form['actions']['submit']['#value'] = t('Update');
       $form['override_submit'] = array(
         '#type' => 'hidden',
         '#value' => 1,
       );
     }
 
-    $form['buttons']['submit']['#submit'] = array('views_ui_basic_submit'); // New submit handler (removes old)
+    $form['actions']['submit']['#submit'] = array('views_ui_basic_submit'); // New submit handler (removes old)
   }
 }
+
 
 /**
  * Views save/submit handler (overrides Views UI)
@@ -170,7 +160,7 @@ function views_ui_basic_submit($form, &$form_state) {
 
   $form_state['view']->save();
 
-  drupal_set_message(t('The @section has been updated.', array('@section' => str_replace('_', ' ', $form_state['section']))));
+  backdrop_set_message(t('The @section has been updated.', array('@section' => str_replace('_', ' ', $form_state['section']))));
 
   // Clear the views cache.
   cache_clear_all('*', 'cache_views');
@@ -181,28 +171,28 @@ function views_ui_basic_submit($form, &$form_state) {
   // Redirect back to view page or admin page
   if (_views_ui_basic_is_tab()) {
     $menuitem = menu_get_item();
-    drupal_goto($menuitem['tab_root_href']);
+    backdrop_goto($menuitem['tab_root_href']);
   }
   else {
-    drupal_goto("admin/content/views_ui_basic");
+    backdrop_goto("admin/content/views_ui_basic");
   }
 }
 
 /**
  * Edit a View's setting (e.g., header/footer/empty text, etc)
  * @return string (rendered views UI form).
- * @see views_ui_basic_form_alter()
+ * @see views_ui_basic_form_alter() for form tweaks
  */
 function views_ui_basic_edit_form($view_name, $display_name, $type) {
   $output = '';
 
-  $fields = variable_get('views_ui_basic_fields', array());
+  $fields = config_get('views_ui_basic.settings','views_ui_basic_fields');
   if (!isset($fields[$type])) {
     return FALSE;
   }
 
-  $path = drupal_get_path('module', 'views_ui');
-  require_once "$path/includes/admin.inc";
+  $path = backdrop_get_path('module', 'views_ui');
+  require_once "$path/views_ui.admin.inc";
 
   $view = views_get_view($view_name);
   $view->init_display();
@@ -263,7 +253,7 @@ function views_ui_basic_edit_form($view_name, $display_name, $type) {
       $options[$key] = $title;
     }
 
-    $switch_form = drupal_get_form('views_ui_basic_switch_form', $type, $options);
+    $switch_form = backdrop_get_form('views_ui_basic_switch_form', $type, $options);
     if ($switch_form['area']['#default_value']) {
       $config_area = $switch_form['area']['#default_value'];
     }
@@ -276,10 +266,10 @@ function views_ui_basic_edit_form($view_name, $display_name, $type) {
   $output .= views_ui_ajax_form(FALSE, $key, $view, $display_name, $type, $config_area);
 
   // Remove non-compatible HTML in title (Views bug?)
-  $title = drupal_get_title();
+  $title = backdrop_get_title();
   $title = str_replace('&lt;em class=&quot;placeholder&quot;&gt;', ' - ', $title);
   $title = str_replace('&lt;/em&gt;', '', $title);
-  drupal_set_title($title);
+  backdrop_set_title($title);
 
   return $output;
 }
@@ -327,18 +317,19 @@ function views_ui_basic_switch_form_submit($form, &$form_state) {
  */
 function views_ui_basic_list_page() {
   $fields = _views_ui_basic_fields();
-  $fields_allowed = variable_get('views_ui_basic_fields', array());
+  $fields_allowed = config_get('views_ui_basic.settings','views_ui_basic_fields');
 
   $views = views_get_all_views();
   $items = array(); // For theme_item_list
 
-  $allowed = variable_get('views_ui_basic', array());
+  $allowed = config_get('views_ui_basic.settings','views_ui_basic');
 
   foreach ($views as $view_key => $view_object) {
     if (isset($allowed[$view_key])) {
       $title = (isset($view_object->display['page'])) ? l($view_key, $view_object->display['page']->display_options['path']) : $view_key;
 
-      $items[$view_key][] = "<h4>$title</h4>";
+      $items[$view_key]['data'] = "<h4>$title</h4>";
+
       foreach ($view_object->display as $display_key => $views_display) {
         if (in_array($display_key, $allowed[$view_key])) {
           $editlink = array();
@@ -361,7 +352,7 @@ function views_ui_basic_list_page() {
             $item = "$display_key ($views_display->display_title) Edit: " . implode(' | ', $editlink);
           }
 
-          $items[$view_key]['children'][$display_key][] = $item;
+          $items[$view_key]['children'][] = $item;
         }
       }
     }
@@ -384,8 +375,7 @@ function views_ui_basic_list_page() {
  */
 function _views_ui_basic_get_views($type) {
   $views = views_get_all_views();
-  $allowed = variable_get('views_ui_basic', array());
-
+  $allowed = config_get('views_ui_basic.settings','views_ui_basic');
   $items = array();
 
   foreach ($views as $view_key => $view_object) {
@@ -432,7 +422,7 @@ function _views_ui_basic_is_tab() {
 function _views_ui_basic_define_menu(&$items) {
   // Determine tabs
   $fields = _views_ui_basic_fields();
-  foreach (variable_get('views_ui_basic_fields', array()) as $field) {
+  foreach ($fields as $field) {
     if (isset($fields[$field])) {
       $tabs[$field] = $fields[$field];
     }
@@ -513,7 +503,7 @@ function _views_ui_basic_define_menu(&$items) {
       'type' => MENU_CALLBACK,
     ) + $block_defaults;
 
-    foreach (variable_get('views_ui_basic_fields', array()) as $field) {
+    foreach (config_get('views_ui_basic.settings','views_ui_basic_fields') as $field) {
       $items[$path . '/' . $field] = array(
         'title' => "Edit $field",
         'type' => MENU_LOCAL_ACTION,
@@ -523,18 +513,14 @@ function _views_ui_basic_define_menu(&$items) {
   }
 }
 
+
 /**
- * Enable WYSIWYG by recursively searching form array.
+ * Implements hook_config_info().
  */
-function _views_ui_basic_enable_wysiwyg(&$form_element) {
-  foreach ($form_element as $key => $value) {
-    if (is_array($value)) {
-      if (isset($value['#wysiwyg'])) {
-        $form_element[$key]['#wysiwyg'] = TRUE;
-      }
-      else {
-        _views_ui_basic_enable_wysiwyg($form_element[$key]);
-      }
-    }
-  }
+function views_ui_basic_config_info(){
+  $prefixes['views_ui_basic.settings'] = array(
+    'label' => t('Views UI Basic settings'),
+    'group' => t('Configuration'),
+  );
+  return $prefixes;
 }

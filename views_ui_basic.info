@@ -1,6 +1,6 @@
 name = Views UI: Edit Basic Settings
 description = Interface to edit basic Views settings, such as headers, footers, title, empty text, and items to display.
 package = Views
-core = 7.x
-dependencies[] = views_ui
-configure = admin/structure/views/views_ui_basic
+backdrop = 1.x
+dependencies[] = views
+type = module

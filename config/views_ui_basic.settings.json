@@ -1,0 +1,13 @@
+{
+  "_config_name": "views_ui_basic.settings",
+  "views_ui_basic_default": {
+    "title": "Title",
+    "header": "Header",
+    "footer": "Footer",
+    "empty": "No results text",
+    "pager_options": "Pager options"
+  },
+  "views_ui_basic_fields": {},
+  "views_ui_basic":{},
+  "menu_rebuild_needed":0
+}
