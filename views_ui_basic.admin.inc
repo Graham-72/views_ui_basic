@@ -8,7 +8,7 @@
  * Admin form
  */
 function views_ui_basic_admin_form() {
-  $form["#prefix"] = t('Use this form to define which Views may be editable by users with the !permission permission.<br /><strong>Please note that the edits made using this module will automatically override default display settings.</strong>', array('!permission' => l(t('edit views basic settings'), 'admin/people/permissions', array('fragment' => 'module-views_ui_basic'))));
+  $form["#prefix"] = t('Use this form to define which Views may be editable by users with the !permission permission.<br /><strong>Please note that the edits made using this module will automatically override default display settings.</strong>', array('!permission' => l(t('edit views basic settings'), 'admin/config/people/permissions', array('fragment' => 'module-views_ui_basic'))));
 
   $form['fsfields'] = array(
     '#type'  => 'fieldset',
